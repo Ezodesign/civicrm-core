@@ -476,7 +476,7 @@ class CRM_Utils_System_Joomla extends CRM_Utils_System_Base {
 
     $db = $JUserTable->getDbo();
     $query = $db->getQuery(TRUE);
-    $query->select('id, username, email, password');
+    $query->select('id, name, username, email, password');
     $query->from($JUserTable->getTableName());
     $query->where('(LOWER(username) = LOWER(\'' . $name . '\')) AND (block = 0)');
     $db->setQuery($query, 0, 0);
