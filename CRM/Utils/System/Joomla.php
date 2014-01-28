@@ -470,6 +470,7 @@ class CRM_Utils_System_Joomla extends CRM_Utils_System_Base {
 
     jimport('joomla.application.component.helper');
     jimport('joomla.database.table');
+    jimport('joomla.user.helper');
 
     $JUserTable = JTable::getInstance('User', 'JTable');
 
@@ -479,32 +480,37 @@ class CRM_Utils_System_Joomla extends CRM_Utils_System_Base {
     $query->from($JUserTable->getTableName());
     $query->where('(LOWER(username) = LOWER(\'' . $name . '\')) AND (block = 0)');
     $db->setQuery($query, 0, 0);
-    $users = $db->loadAssocList();
+    $users = $db->loadObjectList();
 
     $row = array();;
     if (count($users)) {
       $row = $users[0];
     }
 
-    $user = NULL;
+    $user = $row;
     if (!empty($row)) {
-      $dbPassword = CRM_Utils_Array::value('password', $row);
-      $dbId       = CRM_Utils_Array::value('id', $row);
-      $dbEmail    = CRM_Utils_Array::value('email', $row);
+      $dbPassword = $row->password;
+      $dbId       = $row->id;
+      $dbEmail    = $row->email;
 
-      // now check password
-      if (strpos($dbPassword, ':') === FALSE) {
-        if ($dbPassword != md5($password)) {
-          return FALSE;
+      if (version_compare(JVERSION, '3.0', 'lt')) {
+        // now check password
+        if (strpos($dbPassword, ':') === FALSE) {
+          if ($dbPassword != md5($password)) {
+            return FALSE;
+          }
         }
+        else {
+          list($hash, $salt) = explode(':', $dbPassword);
+          $cryptpass = md5($password . $salt);
+          if ($hash != $cryptpass) {
+            return FALSE;
+          }
+        }  
+      } else {
+        if (!JUserHelper::verifyPassword($password, $dbPassword)) return FALSE;
       }
-      else {
-        list($hash, $salt) = explode(':', $dbPassword);
-        $cryptpass = md5($password . $salt);
-        if ($hash != $cryptpass) {
-          return FALSE;
-        }
-      }
+      
 
       CRM_Core_BAO_UFMatch::synchronizeUFMatch($user, $dbId, $dbEmail, 'Joomla');
       $contactID = CRM_Core_BAO_UFMatch::getContactId($dbId);
